@@ -2,25 +2,22 @@ import * as d3 from "d3";
 import { feature } from "topojson-client";
 import "./style.css";
 
-/* =========================
-   STATE
-========================= */
+
 const state = {
   theme: document.documentElement.dataset.theme || "dark",
 
   metric: "co2_pc",
-  mode: "value", // value | delta | slope
+  mode: "value",
   year: 2023,
   brush: [2000, 2023],
 
-  scene: "A", // A, B, C
-  pinned: new Set(), // iso3
+  scene: "A",
+  pinned: new Set(),
   hoveredIso3: null,
 
   focusIso3: null,
-  selected: new Set(), // compare selection iso3
+  selected: new Set(),
 
-  // Compare Lab axes (always VALUE at selected year)
   compare: {
     x: "energy_pc",
     y: "co2_pc",
@@ -31,9 +28,6 @@ const state = {
 
 let isProgrammaticBrush = false;
 
-/* =========================
-   METRICS DICTIONARY
-========================= */
 const metrics = {
   co2_pc: {
     label: "CO₂ emissions per capita",
@@ -79,9 +73,6 @@ const metrics = {
   },
 };
 
-/* =========================
-   DOM
-========================= */
 const el = {
   metricSelect: document.querySelector("#metricSelect"),
   modeSelect: document.querySelector("#modeSelect"),
@@ -129,9 +120,6 @@ const el = {
   storySteps: Array.from(document.querySelectorAll(".storyStep")),
 };
 
-/* =========================
-   DATA
-========================= */
 let rows = [];
 let years = [];
 let iso3ToSeries = new Map();
@@ -146,9 +134,7 @@ let stripesApi = null;
 
 let globalTempMonthly = null;
 
-/* =========================
-   HELPERS
-========================= */
+
 function isFiniteNumber(x) {
   return x != null && Number.isFinite(+x);
 }
@@ -233,7 +219,6 @@ function computeCountryValue(iso3, metricKey = state.metric) {
   return null;
 }
 
-/** Compare Lab value at selected year ONLY (independent of slope/delta narrative). */
 function valueAtYear(iso3, metricKey, year = state.year) {
   const series = iso3ToSeries.get(iso3);
   if (!series) return null;
@@ -250,9 +235,6 @@ function countryName(iso3) {
   return iso3ToCountry.get(iso3) || iso3;
 }
 
-/* =========================
-   STORY RAIL
-========================= */
 function setScene(scene) {
   state.scene = scene;
 
@@ -291,9 +273,6 @@ function updateStoryCopy() {
     `Compare uses <b>values at year ${state.year}</b> (not slope), so axes are interpretable. Trajectories still show evolution. <span class="wowSource">Metric: ${m.label}.</span>`;
 }
 
-/* =========================
-   OVERLAYS
-========================= */
 function openOverlay(node) { node.setAttribute("aria-hidden", "false"); }
 function closeOverlay(node) { node.setAttribute("aria-hidden", "true"); }
 
@@ -318,9 +297,6 @@ function openCompare(force = false) {
 }
 function closeCompare() { closeOverlay(el.compareOverlay); }
 
-/* =========================
-   TOOLTIP
-========================= */
 function showTooltip(html, x, y) {
   el.tooltip.innerHTML = html;
   el.tooltip.style.left = `${x + 12}px`;
@@ -356,9 +332,6 @@ function tooltipHtml(iso3) {
   `;
 }
 
-/* =========================
-   RIGHT PANEL (hover + pinned)
-========================= */
 function updateHoverPanel(iso3) {
   const m = meta(state.metric);
   const name = countryName(iso3);
@@ -478,9 +451,6 @@ function renderSparkline(container, series, metricKey) {
     .attr("fill", "rgba(106,164,255,0.14)");
 }
 
-/* =========================
-   LEGEND + HIST
-========================= */
 function renderLegendAndHist(values, domain, color) {
   el.legendBar.innerHTML = "";
   const W = el.legendBar.clientWidth || 420;
@@ -548,9 +518,6 @@ function renderLegendAndHist(values, domain, color) {
     .call(g => g.selectAll("path,line").attr("stroke", "var(--border)"));
 }
 
-/* =========================
-   MAP
-========================= */
 function buildNameIndexForMatching() {
   const counts = new Map();
   for (const [iso3, name] of iso3ToCountry.entries()) {
@@ -687,9 +654,6 @@ function initMap() {
   return { update, loadWorld };
 }
 
-/* =========================
-   TIMELINE + BRUSH
-========================= */
 function buildGlobalMedianSeries(metricKey) {
   const byYear = new Map(years.map(y => [y, []]));
   for (const [, series] of iso3ToSeries.entries()) {
@@ -780,9 +744,6 @@ function initTimeline() {
   return { update };
 }
 
-/* =========================
-   FOCUS DRAWER
-========================= */
 function initFocusChart() {
   const node = el.focusChart;
 
@@ -883,9 +844,6 @@ function renderFocus() {
   focusApi.render(iso3);
 }
 
-/* =========================
-   GLOBAL TEMP STRIPES
-========================= */
 function initStripes() {
   const node = el.stripes;
 
@@ -929,11 +887,6 @@ function initStripes() {
   return { render };
 }
 
-/* =========================
-   COMPARE LAB (REFONTE)
-   - Scatter ALWAYS uses valueAtYear(...) for interpretability
-   - Min height so it never collapses
-========================= */
 function initCompare() {
   const keys = Object.keys(metrics);
   const opts = keys.map(k => `<option value="${k}">${metrics[k].label}</option>`).join("");
@@ -979,7 +932,6 @@ function initCompare() {
   function drawScatter() {
     scatterNode.innerHTML = "";
 
-    // Important: force a usable height so it never collapses.
     scatterNode.style.height = "340px";
 
     const width = scatterNode.clientWidth || 900;
@@ -1017,7 +969,6 @@ function initCompare() {
       ? d3.scaleSequential(d3.interpolateViridis).domain(extentSafe(pts.map(d => d.c).filter(isFiniteNumber)))
       : (() => "rgba(255,255,255,0.75)");
 
-    // axes
     g.append("g").attr("transform", `translate(0,${h})`)
       .call(d3.axisBottom(x).ticks(6))
       .call(g => g.selectAll("text").attr("fill", "var(--muted)"))
@@ -1028,7 +979,6 @@ function initCompare() {
       .call(g => g.selectAll("text").attr("fill", "var(--muted)"))
       .call(g => g.selectAll("path,line").attr("stroke", "var(--border)"));
 
-    // labels
     g.append("text")
       .attr("x", 0)
       .attr("y", h + 42)
@@ -1043,7 +993,6 @@ function initCompare() {
       .attr("font-size", 11)
       .text(`${yMeta.label} (${yMeta.unit}) — value in ${state.year}`);
 
-    // brush selection
     const brush = d3.brush()
       .extent([[0, 0], [w, h]])
       .on("brush end", (event) => {
@@ -1062,7 +1011,6 @@ function initCompare() {
 
     g.append("g").attr("class", "scatterBrush").call(brush);
 
-    // points
     g.selectAll("circle")
       .data(pts, d => d.iso3)
       .join("circle")
@@ -1155,7 +1103,6 @@ function initCompare() {
       return;
     }
 
-    // Ensure usable height
     el.compareTraj.style.height = "240px";
 
     const width = el.compareTraj.clientWidth || 1000;
@@ -1234,9 +1181,6 @@ function renderCompare() {
   scatterApi.renderAllCompare();
 }
 
-/* =========================
-   CONTROLS
-========================= */
 function initControls() {
   const available = new Set(rows.columns || Object.keys(rows[0] || {}));
   const opts = Object.entries(metrics)
@@ -1313,9 +1257,6 @@ function updateControlsEnabled() {
   el.yearSlider.style.opacity = brushMode ? "0.5" : "1";
 }
 
-/* =========================
-   RENDER
-========================= */
 function renderAll() {
   if (!mapApi || !timelineApi) return;
 
@@ -1339,9 +1280,6 @@ function renderAll() {
   updateStoryCopy();
 }
 
-/* =========================
-   MAIN
-========================= */
 async function main() {
   rows = await d3.csv("/data/core_merged.csv", d3.autoType);
 
