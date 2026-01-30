@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Climate Trajectories Explorer</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="brand">
+          <div class="title">Climate Trajectories Explorer</div>
+          <div class="subtitle">Explore distributions • change • compare (2000–2023) with 236 countries</div>
+        </div>
+
+        <div class="topActions">
+          <button id="compareBtn" class="btn primary">Compare</button>
+          <button id="themeBtn" class="btn">Toggle theme</button>
+        </div>
+      </header>
+
+      <!-- Story rail (immersive, not just “a panel”) -->
+      <section class="storyRail">
+        <button class="storyStep active" data-scene="A">
+          <span class="stepK">A</span>
+          <span class="stepText">
+            <span class="stepTitle">Distribution</span>
+            <span class="stepDesc">Where are the extremes?</span>
+          </span>
+        </button>
+        <button class="storyStep" data-scene="B">
+          <span class="stepK">B</span>
+          <span class="stepText">
+            <span class="stepTitle">Change</span>
+            <span class="stepDesc">Who moved the most?</span>
+          </span>
+        </button>
+        <button class="storyStep" data-scene="C">
+          <span class="stepK">C</span>
+          <span class="stepText">
+            <span class="stepTitle">Compare</span>
+            <span class="stepDesc">Responsibility vs Vulnerability</span>
+          </span>
+        </button>
+
+        <div class="storyCopy">
+          <div id="vizTitle" class="vizTitle">Loading…</div>
+          <div id="vizMeta" class="vizMeta"></div>
+        </div>
+      </section>
+
+      <!-- Main layout -->
+      <main class="layout">
+        <!-- Controls (floating card) -->
+        <aside class="controls">
+          <div class="card">
+            <div class="cardTitle">Controls</div>
+
+            <label class="lbl" for="metricSelect">Metric</label>
+            <select id="metricSelect" class="select"></select>
+
+            <label class="lbl" for="modeSelect">Mode</label>
+            <select id="modeSelect" class="select">
+              <option value="value">Value (single year)</option>
+              <option value="delta">Delta (brush window)</option>
+              <option value="slope">Slope (per year)</option>
+            </select>
+
+            <div class="row">
+              <div class="lbl">Year: <span id="yearLabel">—</span></div>
+            </div>
+            <input id="yearSlider" type="range" min="2000" max="2023" step="1" />
+
+            <div class="hint">
+              Tip: switch to Delta/Slope and use the brush in the timeline.
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="miniTitle">Discovery</div>
+            <ol class="discovery">
+              <li>Scene A: move the year slider and spot outliers.</li>
+              <li>Scene B: brush multiple windows to reveal phases.</li>
+              <li>Click a country to open Focus mode (details).</li>
+              <li>Open Compare to build a narrative with evidence.</li>
+            </ol>
+          </div>
+
+          <div class="card">
+            <div class="cardTitle">Global context (temperature)</div>
+            <div class="hint">Monthly global temperature anomalies (2000–2023).</div>
+            <div id="globalStripes" class="stripes"></div>
+          </div>
+        </aside>
+
+        <!-- Viz area -->
+        <section class="viz">
+          <div class="vizGrid">
+            <div class="mapCard">
+              <div class="mapTop">
+                <div class="mapTopLeft">
+                  <div class="mapTitle">Map</div>
+                  <div class="mapHint">Hover for tooltip • Click for Focus • Shift+Click pin/unpin</div>
+                </div>
+                <div class="legendSlot">
+                  <div id="legendBar" class="legendBar"></div>
+                  <div id="hist" class="hist"></div>
+                </div>
+              </div>
+
+              <div id="map" class="map"></div>
+
+              <div class="timelineWrap">
+                <div class="timelineTitle">Timeline (global median) + Brush</div>
+                <div id="timeline" class="timeline"></div>
+              </div>
+            </div>
+
+            <!-- Right details panel (still useful, but Focus mode is the “wow”) -->
+            <div class="detailsCard">
+              <div class="cardTitle">Details</div>
+              <div id="countryTitle" class="countryTitle">Hover a country</div>
+              <div id="countryValue" class="countryValue"></div>
+              <div id="countryMeta" class="countryMeta"></div>
+
+              <div class="divider"></div>
+
+              <div class="cardTitle">Pinned countries</div>
+              <div class="hint">Pinned cards auto-update when metric/mode/brush changes.</div>
+              <div id="pinnedList" class="pinnedList"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Tooltip -->
+      <div id="tooltip" class="tooltip" style="opacity:0"></div>
+
+      <!-- Focus Drawer (click a country) -->
+      <div id="focusOverlay" class="overlay" aria-hidden="true">
+        <div class="overlayBackdrop" data-close="focus"></div>
+
+        <div class="drawer">
+          <div class="drawerHeader">
+            <div>
+              <div id="focusCountry" class="drawerTitle">Country</div>
+              <div id="focusSub" class="drawerSub">—</div>
+            </div>
+            <div class="drawerActions">
+              <button id="focusPinBtn" class="btn primary">Pin</button>
+              <button id="focusCloseBtn" class="btn">Close</button>
+            </div>
+          </div>
+
+          <div class="drawerBody">
+            <div class="drawerGrid">
+              <div class="drawerCard">
+                <div class="drawerCardTitle">What you’re seeing</div>
+                <div id="focusExplain" class="drawerText"></div>
+              </div>
+
+              <div class="drawerCard">
+                <div class="drawerCardTitle">Country trajectory</div>
+                <div id="focusChart" class="focusChart"></div>
+                <div id="focusStats" class="drawerText" style="margin-top:10px"></div>
+              </div>
+
+              <div class="drawerCard">
+                <div class="drawerCardTitle">Evidence & notes</div>
+                <div class="drawerText" id="focusNotes">
+                  Tip: in Scene B, brush different windows to reveal <b>phases</b> and pin countries that behave differently.
+                  In Compare, you can place this country in a responsibility vs vulnerability context.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compare Overlay (Scene C) -->
+      <div id="compareOverlay" class="overlay" aria-hidden="true">
+        <div class="overlayBackdrop" data-close="compare"></div>
+
+        <div class="compare">
+          <div class="compareHeader">
+            <div>
+              <div class="drawerTitle">Compare Lab</div>
+              <div class="drawerSub">A cinematic view: scatter + selection + trajectories (linked to the map)</div>
+            </div>
+            <div class="drawerActions">
+              <button id="compareCloseBtn" class="btn">Close</button>
+            </div>
+          </div>
+
+          <div class="compareBody">
+            <div class="compareControls">
+              <div class="compareControl">
+                <label class="lbl" for="xSelect">X axis</label>
+                <select id="xSelect" class="select"></select>
+              </div>
+              <div class="compareControl">
+                <label class="lbl" for="ySelect">Y axis</label>
+                <select id="ySelect" class="select"></select>
+              </div>
+              <div class="compareControl">
+                <label class="lbl" for="sizeSelect">Size</label>
+                <select id="sizeSelect" class="select"></select>
+              </div>
+              <div class="compareControl">
+                <label class="lbl" for="colorSelect">Color</label>
+                <select id="colorSelect" class="select"></select>
+              </div>
+              <div class="compareControl wide">
+                <div class="hint">
+                  Brush in scatter to select. Hover highlights on map. Click point opens Focus mode.
+                </div>
+              </div>
+            </div>
+
+            <div class="compareGrid">
+              <div class="compareCard">
+                <div class="compareCardTitle">Scatter (responsibility vs vulnerability)</div>
+                <div id="scatter" class="scatter"></div>
+              </div>
+
+              <div class="compareCard">
+                <div class="compareCardTitle">Selection</div>
+                <div class="hint">Selected countries are not “pins” unless you pin them.</div>
+                <div id="selectionList" class="selectionList"></div>
+              </div>
+
+              <div class="compareCard span2">
+                <div class="compareCardTitle">Trajectories (selected + pinned)</div>
+                <div id="compareTraj" class="compareTraj"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script type="module" src="/src/main.js"></script>
+    </div>
+  </body>
+</html>
